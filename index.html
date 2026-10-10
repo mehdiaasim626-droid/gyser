@@ -284,14 +284,6 @@
         appId: "1:831520595362:web:b0c18a917bb0c9aa28e6fb"
       };
 
-      if (
-        !firebaseConfig.apiKey ||
-        firebaseConfig.apiKey === "AIzaSyCpvEFTqYIYrYN1RzdDkmzdiUEAzbIUsw4"
-      ) {
-        throw new Error(
-          "Replace PASTE_YOUR_REAL_FIREBASE_API_KEY_HERE with the API key from Firebase Project settings."
-        );
-      }
 
       const app = initializeApp(firebaseConfig);
       const auth = getAuth(app);
