@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Smart Geyser Control</title>
 
   <style>
@@ -38,8 +38,8 @@
       padding: 14px;
       margin-bottom: 20px;
       color: #9a3412;
-      font-size: 14px;
       line-height: 1.5;
+      font-size: 14px;
     }
 
     .card {
@@ -75,10 +75,7 @@
       margin-right: 7px;
     }
 
-    #loginForm {
-      display: grid;
-      gap: 10px;
-    }
+    form { display: grid; gap: 10px; }
 
     input {
       width: 100%;
@@ -86,13 +83,6 @@
       border: 1px solid #cbd5e1;
       border-radius: 8px;
       font-size: 16px;
-    }
-
-    .buttons {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 24px;
     }
 
     button {
@@ -109,14 +99,26 @@
       outline-offset: 3px;
     }
 
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .primary { background: #1d4ed8; color: white; }
     .secondary { background: #e2e8f0; color: #172033; }
     .on { background: #15803d; color: white; }
     .off { background: #b91c1c; color: white; }
 
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .status-message {
+      overflow-wrap: anywhere;
+      line-height: 1.5;
     }
 
     footer {
@@ -148,8 +150,8 @@
   <main>
     <div class="notice">
       <strong>DEMO MODE ONLY:</strong>
-      Commands are saved to Firebase for testing.
-      No physical geyser, relay, or ESP32 is controlled.
+      Commands are stored for testing. No physical geyser,
+      relay, or ESP32 is controlled.
     </div>
 
     <section class="card">
@@ -157,23 +159,14 @@
 
       <form id="loginForm">
         <label for="email">Email address</label>
-        <input
-          id="email"
-          type="email"
-          autocomplete="email"
-          placeholder="Enter your email"
-          required
-        >
+        <input id="email" type="email" autocomplete="email"
+               placeholder="Enter your email" required>
 
         <label for="password">Password</label>
-        <input
-          id="password"
-          type="password"
-          autocomplete="current-password"
-          placeholder="Enter your password"
-          minlength="6"
-          required
-        >
+        <input id="password" type="password"
+               autocomplete="current-password"
+               placeholder="At least 6 characters"
+               minlength="6" required>
 
         <button class="primary" type="submit" id="loginButton">
           Sign In
@@ -192,8 +185,8 @@
         </button>
       </form>
 
-      <p id="authStatus" class="muted" aria-live="polite">
-        Sign in with your Firebase email and password.
+      <p id="authStatus" class="muted status-message" aria-live="polite">
+        Loading Firebase Authentication...
       </p>
     </section>
 
@@ -203,7 +196,6 @@
           <h2>My Electric Geyser</h2>
           <p class="muted">Electric storage water heater</p>
         </div>
-
         <div class="muted">
           <span class="dot"></span>
           <span id="connection">Not signed in</span>
@@ -211,31 +203,25 @@
       </div>
 
       <div class="status" id="status">Simulated state: OFF</div>
-
-      <p class="muted" id="description">
-        No physical device is connected.
-      </p>
+      <p class="muted">No physical device is connected.</p>
 
       <div class="buttons">
         <button class="on" id="onButton" disabled>Demo ON</button>
         <button class="off" id="offButton" disabled>Demo OFF</button>
       </div>
 
-      <p id="message" aria-live="polite" class="muted">
+      <p id="message" class="muted status-message" aria-live="polite">
         Sign in to test demo commands.
       </p>
     </section>
 
     <section class="card">
       <h3>Device Information</h3>
-
       <div class="row">
         <span>Controller</span>
         <strong>ESP32-S3 — not connected</strong>
       </div>
-
       <hr>
-
       <div class="row">
         <span>Control mode</span>
         <strong>Demo only</strong>
@@ -246,240 +232,282 @@
   <footer>Smart Geyser Control · Prototype</footer>
 
   <script type="module">
-    import { initializeApp }
-      from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-
-    import {
-      getAuth,
-      signInWithEmailAndPassword,
-      createUserWithEmailAndPassword,
-      sendPasswordResetEmail,
-      signOut,
-      onAuthStateChanged
-    } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-
-    import {
-      getDatabase,
-      ref,
-      set
-    } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
-
-
-    // 1. FIREBASE CONFIGURATION
-    const firebaseConfig = {
-      apiKey: "AIzaSyCpvEFTqYIYrYN1RzdDkmzdiUEAzbIUsw4",
-      authDomain: "sgcs-7a424.firebaseapp.com",
-
-      // Replace with the EXACT URL shown under
-      // Firebase Console > Realtime Database > Data.
-      databaseURL: "https://console.firebase.google.com/project/sgcs-7a424/database/sgcs-7a424-default-rtdb/data/~2F",
-
-      projectId: "sgcs-7a424",
-      storageBucket: "sgcs-7a424.firebasestorage.app",
-      messagingSenderId: "831520595362",
-      appId: "1:831520595362:web:b0c18a917bb0c9aa28e6fb"
-      
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
-
+    const authStatus = document.getElementById("authStatus");
     const $ = (id) => document.getElementById(id);
 
-    let signedInUser = null;
-    let commandInProgress = false;
+    function showAuthError(prefix, error) {
+      console.error(prefix, error.code, error.message, error);
 
-    function setAuthStatus(text) {
-      $("authStatus").textContent = text;
+      authStatus.textContent =
+        prefix + " " + (error.code || "Unknown error") +
+        ": " + (error.message || String(error));
     }
 
-    function setMessage(text) {
-      $("message").textContent = text;
-    }
-
-    function updateButtons() {
-      const signedIn = Boolean(signedInUser);
-
-      $("loginButton").disabled = signedIn;
-      $("signupButton").disabled = signedIn;
-      $("resetButton").disabled = signedIn;
-      $("logoutButton").disabled = !signedIn;
-
-      $("email").disabled = signedIn;
-      $("password").disabled = signedIn;
-
-      $("onButton").disabled = !signedIn || commandInProgress;
-      $("offButton").disabled = !signedIn || commandInProgress;
-    }
-
-
-    // 2. SIGN IN WITH EMAIL AND PASSWORD
-    $("loginForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-
-      const email = $("email").value.trim();
-      const password = $("password").value;
-
-      $("loginButton").disabled = true;
-      setAuthStatus("Signing in...");
-
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        setAuthStatus("Login successful.");
-      } catch (error) {
-        console.error("Login error:", error.code, error.message);
-        setAuthStatus(error.code + ": " + error.message);
-      } finally {
-        updateButtons();
-      }
-    });
-
-
-    // 3. CREATE A NEW ACCOUNT
-    $("signupButton").addEventListener("click", async () => {
-      const email = $("email").value.trim();
-      const password = $("password").value;
-
-      if (!email || !password) {
-        setAuthStatus("Enter an email and password first.");
-        return;
-      }
-
-      if (password.length < 6) {
-        setAuthStatus("Use a password of at least 6 characters.");
-        return;
-      }
-
-      $("signupButton").disabled = true;
-      setAuthStatus("Creating your account...");
-
-      try {
-        await createUserWithEmailAndPassword(auth, email, password);
-        setAuthStatus("Account created and signed in.");
-      } catch (error) {
-        console.error("Sign-up error:", error.code, error.message);
-        setAuthStatus(error.code + ": " + error.message);
-      } finally {
-        updateButtons();
-      }
-    });
-
-
-    // 4. RESET PASSWORD
-    $("resetButton").addEventListener("click", async () => {
-      const email = $("email").value.trim();
-
-      if (!email) {
-        setAuthStatus("Enter your email address first.");
-        return;
-      }
-
-      $("resetButton").disabled = true;
-      setAuthStatus("Requesting password reset...");
-
-      try {
-        await sendPasswordResetEmail(auth, email);
-        setAuthStatus("Password reset email requested. Check your inbox and spam folder.");
-      } catch (error) {
-        console.error("Password reset error:", error.code, error.message);
-        setAuthStatus(error.code + ": " + error.message);
-      } finally {
-        updateButtons();
-      }
-    });
-
-
-    // 5. MONITOR LOGIN STATE
-    onAuthStateChanged(auth, (user) => {
-      signedInUser = user;
-
-      $("connection").textContent = user
-        ? "Authenticated"
-        : "Not signed in";
-
-      if (!user) {
-        $("status").textContent = "Simulated state: OFF";
-        setMessage("Sign in to test demo commands.");
-        setAuthStatus("Sign in with your Firebase email and password.");
-      } else {
-        setMessage("Signed in. Demo commands only; no hardware is connected.");
-        setAuthStatus("Signed in as: " + user.email);
-      }
-
-      updateButtons();
-    });
-
-
-    // 6. SIGN OUT
-    $("logoutButton").addEventListener("click", async () => {
-      try {
-        await signOut(auth);
-        setAuthStatus("You have signed out.");
-      } catch (error) {
-        console.error("Sign-out error:", error);
-        setAuthStatus(error.code + ": " + error.message);
-      }
-    });
-
-
-    // 7. SAVE DEMO COMMANDS TO FIREBASE
-    // These commands do NOT operate a physical relay or geyser.
-    async function submitDemoCommand(state) {
-      if (!signedInUser) {
-        setMessage("Please sign in first.");
-        return;
-      }
-
-      if (commandInProgress) return;
-
-      commandInProgress = true;
-      updateButtons();
-
-      try {
-        await set(ref(db, "devices/geyser01/demoCommand"), {
-          requestedState: state,
-          requestId: crypto.randomUUID(),
-          mode: "DEMO",
-          requestedBy: signedInUser.uid,
-          timestamp: Date.now()
-        });
-
-        $("status").textContent = "Simulated state: " + state;
-        setMessage("Demo command saved to Firebase. No physical geyser was switched.");
-
-      } catch (error) {
-        console.error("Database error:", error.code, error.message);
-        setMessage("Database error: " + error.message);
-      } finally {
-        commandInProgress = false;
-        updateButtons();
-      }
-    }
-
-    $("onButton").addEventListener("click", () => {
-      submitDemoCommand("ON");
-    });
-
-    $("offButton").addEventListener("click", () => {
-      submitDemoCommand("OFF");
-    });
-    //temp
+    // Show JavaScript errors on the page as well as in Console.
     window.addEventListener("error", (event) => {
-  console.error("JavaScript error:", event.message);
-  document.getElementById("authStatus").textContent =
-    "JavaScript error: " + event.message;
-});
+      console.error("Page error:", event.message);
+    });
 
-window.addEventListener("unhandledrejection", (event) => {
-  const error = event.reason;
-  console.error("Async error:", error);
+    window.addEventListener("unhandledrejection", (event) => {
+      console.error("Unhandled promise:", event.reason);
+    });
 
-  document.getElementById("authStatus").textContent =
-    "Async error: " + (error?.code || error?.message || String(error));
-});
+    try {
+      authStatus.textContent = "Loading Firebase SDK...";
 
-console.log("Smart Geyser JavaScript loaded successfully.");
+      const [
+        appModule,
+        authModule
+      ] = await Promise.all([
+        import("https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js"),
+        import("https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js")
+      ]);
+
+      const { initializeApp } = appModule;
+
+      const {
+        getAuth,
+        createUserWithEmailAndPassword,
+        signInWithEmailAndPassword,
+        sendPasswordResetEmail,
+        signOut,
+        onAuthStateChanged
+      } = authModule;
+
+      // Keep your actual Web App configuration here.
+      const firebaseConfig = {
+        apiKey: "AIzaSyCpvEFTqYIYrYN1RzdDkmzdiUEAzbIUsw4",
+        authDomain: "sgcs-7a424.firebaseapp.com",
+        projectId: "sgcs-7a424",
+        storageBucket: "sgcs-7a424.firebasestorage.app",
+        messagingSenderId: "831520595362",
+        appId: "1:831520595362:web:b0c18a917bb0c9aa28e6fb"
+      };
+
+      if (
+        !firebaseConfig.apiKey ||
+        firebaseConfig.apiKey === "AIzaSyCpvEFTqYIYrYN1RzdDkmzdiUEAzbIUsw4"
+      ) {
+        throw new Error(
+          "AIzaSyCpvEFTqYIYrYN1RzdDkmzdiUEAzbIUsw4"
+        );
+      }
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+
+      let signedInUser = null;
+      let busy = false;
+
+      function setMessage(text) {
+        $("message").textContent = text;
+      }
+
+      function updateButtons() {
+        const loggedIn = Boolean(signedInUser);
+
+        $("loginButton").disabled = loggedIn || busy;
+        $("signupButton").disabled = loggedIn || busy;
+        $("resetButton").disabled = loggedIn || busy;
+        $("logoutButton").disabled = !loggedIn || busy;
+
+        $("email").disabled = loggedIn || busy;
+        $("password").disabled = loggedIn || busy;
+
+        $("onButton").disabled = !loggedIn || busy;
+        $("offButton").disabled = !loggedIn || busy;
+      }
+
+      async function runAuthAction(action, successMessage) {
+        if (busy) return;
+
+        busy = true;
+        updateButtons();
+        authStatus.textContent = "Connecting to Firebase Authentication...";
+
+        try {
+          await action();
+          authStatus.textContent = successMessage;
+        } catch (error) {
+          showAuthError("Authentication failed:", error);
+        } finally {
+          busy = false;
+          updateButtons();
+        }
+      }
+
+      // Create account
+      $("signupButton").addEventListener("click", async () => {
+        const email = $("email").value.trim();
+        const password = $("password").value;
+
+        if (!email || !password) {
+          authStatus.textContent = "Enter an email and password first.";
+          return;
+        }
+
+        if (password.length < 6) {
+          authStatus.textContent =
+            "Password must contain at least 6 characters.";
+          return;
+        }
+
+        await runAuthAction(
+          async () => {
+            const result = await createUserWithEmailAndPassword(
+              auth, email, password
+            );
+            console.log("Account created. UID:", result.user.uid);
+          },
+          "Account created successfully. You are signed in."
+        );
+      });
+
+      // Sign in
+      $("loginForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const email = $("email").value.trim();
+        const password = $("password").value;
+
+        if (!email || !password) {
+          authStatus.textContent = "Enter your email and password.";
+          return;
+        }
+
+        await runAuthAction(
+          async () => {
+            const result = await signInWithEmailAndPassword(
+              auth, email, password
+            );
+            console.log("Signed in. UID:", result.user.uid);
+          },
+          "Sign-in successful."
+        );
+      });
+
+      // Password reset
+      $("resetButton").addEventListener("click", async () => {
+        const email = $("email").value.trim();
+
+        if (!email) {
+          authStatus.textContent =
+            "Enter your email address before requesting a reset.";
+          return;
+        }
+
+        await runAuthAction(
+          () => sendPasswordResetEmail(auth, email),
+          "Password reset request accepted. Check your inbox and spam folder."
+        );
+      });
+
+      // Sign out
+      $("logoutButton").addEventListener("click", async () => {
+        await runAuthAction(
+          () => signOut(auth),
+          "You have signed out."
+        );
+      });
+
+      // Track the Firebase login state
+      onAuthStateChanged(auth, (user) => {
+        signedInUser = user;
+
+        $("connection").textContent =
+          user ? "Authenticated" : "Not signed in";
+
+        if (user) {
+          authStatus.textContent = "Signed in as " + user.email;
+          setMessage("Signed in. Demo commands only; hardware is not connected.");
+        } else {
+          $("status").textContent = "Simulated state: OFF";
+          setMessage("Sign in to test demo commands.");
+          if (!busy) {
+            authStatus.textContent =
+              "Not signed in. Create an account or sign in.";
+          }
+        }
+
+        updateButtons();
+      });
+
+      // Load database SDK only when a demo command is clicked.
+      // Authentication can work independently of the database URL.
+      async function submitDemoCommand(state) {
+        if (!signedInUser || busy) {
+          setMessage("Please sign in first.");
+          return;
+        }
+
+        busy = true;
+        updateButtons();
+        setMessage("Checking demo database configuration...");
+
+        try {
+          // Get the exact URL from Firebase Console > Realtime Database > Data.
+          // It is NOT a console.firebase.google.com URL.
+          const databaseURL = prompt(
+            "For this test, paste your exact Firebase Realtime Database URL from the Data page:"
+          );
+
+          if (!databaseURL) {
+            throw new Error("Database URL not entered. No command was sent.");
+          }
+
+          if (!/^https:\/\/[^/]+\.firebasedatabase\.app\/?$/.test(databaseURL) &&
+              !/^https:\/\/[^/]+\.firebaseio\.com\/?$/.test(databaseURL)) {
+            throw new Error(
+              "This does not look like a Realtime Database URL. Do not use the Firebase Console webpage URL."
+            );
+          }
+
+          const { getDatabase, ref, set } = await import(
+            "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js"
+          );
+
+          const db = getDatabase(app, databaseURL);
+
+          await set(ref(db, "devices/geyser01/demoCommand"), {
+            requestedState: state,
+            requestId: crypto.randomUUID(),
+            mode: "DEMO",
+            requestedBy: signedInUser.uid,
+            timestamp: Date.now()
+          });
+
+          $("status").textContent = "Simulated state: " + state;
+          setMessage(
+            "Demo command saved. No physical geyser or relay was switched."
+          );
+        } catch (error) {
+          console.error("Demo database error:", error);
+          setMessage("Demo command failed: " + error.message);
+        } finally {
+          busy = false;
+          updateButtons();
+        }
+      }
+
+      $("onButton").addEventListener("click", () => {
+        submitDemoCommand("ON");
+      });
+
+      $("offButton").addEventListener("click", () => {
+        submitDemoCommand("OFF");
+      });
+
+      authStatus.textContent =
+        "Firebase loaded. Enable Email/Password in Firebase Console, then create an account.";
+
+      console.log("Smart Geyser Firebase Authentication initialized.");
+
+    } catch (error) {
+      console.error("Startup error:", error);
+
+      authStatus.textContent =
+        "STARTUP ERROR: " + (error.message || String(error));
+    }
   </script>
 </body>
 </html>
