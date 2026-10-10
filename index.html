@@ -278,6 +278,7 @@
       storageBucket: "sgcs-7a424.firebasestorage.app",
       messagingSenderId: "831520595362",
       appId: "1:831520595362:web:b0c18a917bb0c9aa28e6fb"
+      
     };
 
     const app = initializeApp(firebaseConfig);
@@ -463,6 +464,22 @@
     $("offButton").addEventListener("click", () => {
       submitDemoCommand("OFF");
     });
+    //temp
+    window.addEventListener("error", (event) => {
+  console.error("JavaScript error:", event.message);
+  document.getElementById("authStatus").textContent =
+    "JavaScript error: " + event.message;
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  const error = event.reason;
+  console.error("Async error:", error);
+
+  document.getElementById("authStatus").textContent =
+    "Async error: " + (error?.code || error?.message || String(error));
+});
+
+console.log("Smart Geyser JavaScript loaded successfully.");
   </script>
 </body>
 </html>
