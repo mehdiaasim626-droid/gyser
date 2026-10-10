@@ -1,0 +1,241 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Geyser Control</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f1f5f9;
+      color: #172033;
+    }
+
+    header {
+      background: #102a43;
+      color: white;
+      padding: 22px 6%;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+    }
+
+    header p {
+      margin: 0;
+      color: #cbd5e1;
+    }
+
+    main {
+      max-width: 850px;
+      margin: 32px auto;
+      padding: 0 18px;
+    }
+
+    .notice {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 20px;
+      color: #9a3412;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 5px 20px #0000000d;
+      margin-bottom: 20px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .muted {
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    .status {
+      font-size: 24px;
+      font-weight: bold;
+      margin: 24px 0 8px;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background: #d97706;
+      border-radius: 50%;
+      margin-right: 7px;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 15px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:focus-visible {
+      outline: 3px solid #2563eb;
+      outline-offset: 3px;
+    }
+
+    .on {
+      background: #15803d;
+      color: white;
+    }
+
+    .off {
+      background: #b91c1c;
+      color: white;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    footer {
+      text-align: center;
+      color: #64748b;
+      font-size: 13px;
+      padding: 20px;
+    }
+
+    @media (max-width: 480px) {
+      .buttons {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Smart Geyser</h1>
+    <p>Remote Control Dashboard</p>
+  </header>
+
+  <main>
+    <div class="notice">
+      <strong>Demo mode:</strong> These buttons only simulate
+      commands. No physical geyser is connected.
+    </div>
+
+    <section class="card">
+      <div class="row">
+        <div>
+          <h2>My Electric Geyser</h2>
+          <p class="muted">Electric storage water heater</p>
+        </div>
+
+        <div class="muted">
+          <span class="dot"></span>
+          <span id="connection">Not connected</span>
+        </div>
+      </div>
+
+      <div class="status" id="status">Simulated state: OFF</div>
+      <p class="muted" id="description">
+        The dashboard is running locally.
+      </p>
+
+      <div class="buttons">
+        <button class="on" id="onButton">
+          Turn ON
+        </button>
+
+        <button class="off" id="offButton">
+          Turn OFF
+        </button>
+      </div>
+
+      <p id="message" aria-live="polite" class="muted">
+        Ready for demo.
+      </p>
+    </section>
+
+    <section class="card">
+      <h3>Device information</h3>
+      <div class="row">
+        <span>Controller</span>
+        <strong>ESP32 — not connected</strong>
+      </div>
+      <hr>
+      <div class="row">
+        <span>Control mode</span>
+        <strong>Demo only</strong>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Smart Geyser Control · Prototype
+  </footer>
+
+  <script>
+    // DEMO MODE: no hardware commands are sent.
+    let simulatedState = false;
+
+    const status = document.getElementById("status");
+    const message = document.getElementById("message");
+
+    document.getElementById("onButton").addEventListener(
+      "click", () => {
+        if (!confirm("Simulate turning the geyser ON?")) return;
+
+        simulatedState = true;
+        updateDashboard();
+      }
+    );
+
+    document.getElementById("offButton").addEventListener(
+      "click", () => {
+        if (!confirm("Simulate turning the geyser OFF?")) return;
+
+        simulatedState = false;
+        updateDashboard();
+      }
+    );
+
+    function updateDashboard() {
+      status.textContent =
+        "Simulated state: " + (simulatedState ? "ON" : "OFF");
+
+      message.textContent =
+        "Demo updated. The physical geyser was not switched.";
+    }
+  </script>
+</body>
+</html>
