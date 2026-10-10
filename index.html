@@ -1,4 +1,4 @@
-```html
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -80,7 +80,7 @@
       gap: 10px;
     }
 
-    #email {
+    input {
       width: 100%;
       padding: 12px;
       border: 1px solid #cbd5e1;
@@ -98,8 +98,8 @@
     button {
       border: 0;
       border-radius: 10px;
-      padding: 15px;
-      font-size: 16px;
+      padding: 13px;
+      font-size: 15px;
       font-weight: bold;
       cursor: pointer;
     }
@@ -110,6 +110,7 @@
     }
 
     .primary { background: #1d4ed8; color: white; }
+    .secondary { background: #e2e8f0; color: #172033; }
     .on { background: #15803d; color: white; }
     .off { background: #b91c1c; color: white; }
 
@@ -123,6 +124,12 @@
       color: #64748b;
       font-size: 13px;
       padding: 20px;
+    }
+
+    hr {
+      border: 0;
+      border-top: 1px solid #e2e8f0;
+      margin: 18px 0;
     }
 
     @media (max-width: 480px) {
@@ -146,7 +153,7 @@
     </div>
 
     <section class="card">
-      <h2>Email Link Sign-in</h2>
+      <h2>Account Login</h2>
 
       <form id="loginForm">
         <label for="email">Email address</label>
@@ -158,17 +165,35 @@
           required
         >
 
-        <button class="primary" type="submit" id="sendLinkButton">
-          Send Sign-in Link
+        <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Enter your password"
+          minlength="6"
+          required
+        >
+
+        <button class="primary" type="submit" id="loginButton">
+          Sign In
         </button>
 
-        <button type="button" id="logoutButton" disabled>
+        <button class="secondary" type="button" id="signupButton">
+          Create Account
+        </button>
+
+        <button class="secondary" type="button" id="resetButton">
+          Reset Password
+        </button>
+
+        <button class="secondary" type="button" id="logoutButton" disabled>
           Sign Out
         </button>
       </form>
 
       <p id="authStatus" class="muted" aria-live="polite">
-        Enter your email to receive a sign-in link.
+        Sign in with your Firebase email and password.
       </p>
     </section>
 
@@ -226,9 +251,9 @@
 
     import {
       getAuth,
-      sendSignInLinkToEmail,
-      isSignInWithEmailLink,
-      signInWithEmailLink,
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      sendPasswordResetEmail,
       signOut,
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
@@ -240,19 +265,14 @@
     } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
 
 
-    // --------------------------------------------------
     // 1. FIREBASE CONFIGURATION
-    // --------------------------------------------------
-
     const firebaseConfig = {
-      apiKey: "AIzaSyCpvEFTqYIYrYN1RzdDkmzdiUEAzbIUsw4",
+      apiKey: "YOUR_FIREBASE_API_KEY",
       authDomain: "sgcs-7a424.firebaseapp.com",
 
-      // IMPORTANT:
-      // Replace this with the actual database URL shown
-      // in Firebase Console > Realtime Database > Data.
-      // Do not use the Firebase Console page URL here.
-      databaseURL: "https://console.firebase.google.com/project/sgcs-7a424/database/sgcs-7a424-default-rtdb/data/~2F",
+      // Replace with the EXACT URL shown under
+      // Firebase Console > Realtime Database > Data.
+      databaseURL: "YOUR_ACTUAL_REALTIME_DATABASE_URL",
 
       projectId: "sgcs-7a424",
       storageBucket: "sgcs-7a424.firebasestorage.app",
@@ -269,152 +289,109 @@
     let signedInUser = null;
     let commandInProgress = false;
 
+    function setAuthStatus(text) {
+      $("authStatus").textContent = text;
+    }
 
-    // --------------------------------------------------
-    // 2. EMAIL LINK SETTINGS
-    // --------------------------------------------------
-
-    const actionCodeSettings = {
-      url: window.location.origin + window.location.pathname,
-      handleCodeInApp: true
-    };
-
-
-    // --------------------------------------------------
-    // 3. INITIAL BUTTON STATE
-    // --------------------------------------------------
-
-    $("onButton").disabled = true;
-    $("offButton").disabled = true;
-    $("logoutButton").disabled = true;
-
-
-    function message(text) {
+    function setMessage(text) {
       $("message").textContent = text;
     }
 
+    function updateButtons() {
+      const signedIn = Boolean(signedInUser);
 
-    function updateCommandButtons() {
-      const enabled = Boolean(signedInUser) && !commandInProgress;
+      $("loginButton").disabled = signedIn;
+      $("signupButton").disabled = signedIn;
+      $("resetButton").disabled = signedIn;
+      $("logoutButton").disabled = !signedIn;
 
-      $("onButton").disabled = !enabled;
-      $("offButton").disabled = !enabled;
+      $("email").disabled = signedIn;
+      $("password").disabled = signedIn;
+
+      $("onButton").disabled = !signedIn || commandInProgress;
+      $("offButton").disabled = !signedIn || commandInProgress;
     }
 
 
-    // --------------------------------------------------
-    // 4. SEND EMAIL SIGN-IN LINK
-    // --------------------------------------------------
-
+    // 2. SIGN IN WITH EMAIL AND PASSWORD
     $("loginForm").addEventListener("submit", async (event) => {
       event.preventDefault();
 
-      if (signedInUser) {
-        $("authStatus").textContent = "You are already signed in.";
-        return;
-      }
-
       const email = $("email").value.trim();
+      const password = $("password").value;
 
-      if (!email) {
-        $("authStatus").textContent = "Please enter your email.";
-        return;
-      }
-
-      $("sendLinkButton").disabled = true;
+      $("loginButton").disabled = true;
+      setAuthStatus("Signing in...");
 
       try {
-        await sendSignInLinkToEmail(
-          auth,
-          email,
-          actionCodeSettings
-        );
-
-        // Save email locally for completing sign-in
-        // on the same browser and device.
-        localStorage.setItem("emailForSignIn", email);
-
-        $("authStatus").textContent =
-          "Sign-in link sent. Check your email and open the link in this browser.";
-
+        await signInWithEmailAndPassword(auth, email, password);
+        setAuthStatus("Login successful.");
       } catch (error) {
-        console.error(error);
-
-        $("authStatus").textContent =
-          "Could not send link: " + error.message;
-
+        console.error("Login error:", error.code, error.message);
+        setAuthStatus(error.code + ": " + error.message);
       } finally {
-        $("sendLinkButton").disabled = Boolean(signedInUser);
+        updateButtons();
       }
     });
 
 
-    // --------------------------------------------------
-    // 5. COMPLETE SIGN-IN FROM THE EMAIL LINK
-    // --------------------------------------------------
+    // 3. CREATE A NEW ACCOUNT
+    $("signupButton").addEventListener("click", async () => {
+      const email = $("email").value.trim();
+      const password = $("password").value;
 
-    async function completeEmailLinkSignIn() {
-      if (!isSignInWithEmailLink(auth, window.location.href)) {
+      if (!email || !password) {
+        setAuthStatus("Enter an email and password first.");
         return;
       }
 
-      let email = localStorage.getItem("emailForSignIn");
-
-      if (!email) {
-        email = window.prompt(
-          "For security, enter the email address that received this link:"
-        );
-      }
-
-      if (!email) {
-        $("authStatus").textContent =
-          "Sign-in cancelled. Enter your email and request a new link.";
+      if (password.length < 6) {
+        setAuthStatus("Use a password of at least 6 characters.");
         return;
       }
 
-      $("authStatus").textContent = "Verifying your sign-in link...";
+      $("signupButton").disabled = true;
+      setAuthStatus("Creating your account...");
 
       try {
-        await signInWithEmailLink(
-          auth,
-          email.trim(),
-          window.location.href
-        );
-
-        localStorage.removeItem("emailForSignIn");
-
-        // Remove the one-time sign-in code from the address bar.
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
-
-        $("authStatus").textContent = "Email verified. You are signed in.";
-
+        await createUserWithEmailAndPassword(auth, email, password);
+        setAuthStatus("Account created and signed in.");
       } catch (error) {
-        console.error(error);
-
-        $("authStatus").textContent =
-          "Sign-in failed: " + error.message;
+        console.error("Sign-up error:", error.code, error.message);
+        setAuthStatus(error.code + ": " + error.message);
+      } finally {
+        updateButtons();
       }
-    }
+    });
 
 
-    // --------------------------------------------------
-    // 6. MONITOR AUTHENTICATION STATE
-    // --------------------------------------------------
+    // 4. RESET PASSWORD
+    $("resetButton").addEventListener("click", async () => {
+      const email = $("email").value.trim();
 
+      if (!email) {
+        setAuthStatus("Enter your email address first.");
+        return;
+      }
+
+      $("resetButton").disabled = true;
+      setAuthStatus("Requesting password reset...");
+
+      try {
+        await sendPasswordResetEmail(auth, email);
+        setAuthStatus("Password reset email requested. Check your inbox and spam folder.");
+      } catch (error) {
+        console.error("Password reset error:", error.code, error.message);
+        setAuthStatus(error.code + ": " + error.message);
+      } finally {
+        updateButtons();
+      }
+    });
+
+
+    // 5. MONITOR LOGIN STATE
     onAuthStateChanged(auth, (user) => {
       signedInUser = user;
-
-      $("logoutButton").disabled = !user;
-      $("sendLinkButton").disabled = Boolean(user);
-      $("email").disabled = Boolean(user);
-
-      $("authStatus").textContent = user
-        ? "Signed in as: " + (user.email || "verified user")
-        : "Not signed in. Enter your email to receive a link.";
 
       $("connection").textContent = user
         ? "Authenticated"
@@ -422,49 +399,41 @@
 
       if (!user) {
         $("status").textContent = "Simulated state: OFF";
+        setMessage("Sign in to test demo commands.");
+        setAuthStatus("Sign in with your Firebase email and password.");
+      } else {
+        setMessage("Signed in. Demo commands only; no hardware is connected.");
+        setAuthStatus("Signed in as: " + user.email);
       }
 
-      updateCommandButtons();
-
-      message(user
-        ? "Ready for demo commands. No physical hardware is connected."
-        : "Sign in to test demo commands.");
+      updateButtons();
     });
 
 
-    // Start checking for an email sign-in link.
-    completeEmailLinkSignIn();
-
-
-    // --------------------------------------------------
-    // 7. SIGN OUT
-    // --------------------------------------------------
-
+    // 6. SIGN OUT
     $("logoutButton").addEventListener("click", async () => {
       try {
         await signOut(auth);
-        $("authStatus").textContent = "You have signed out.";
+        setAuthStatus("You have signed out.");
       } catch (error) {
-        $("authStatus").textContent =
-          "Sign-out failed: " + error.message;
+        console.error("Sign-out error:", error);
+        setAuthStatus(error.code + ": " + error.message);
       }
     });
 
 
-    // --------------------------------------------------
-    // 8. SAVE DEMO COMMANDS ONLY
-    // --------------------------------------------------
-
+    // 7. SAVE DEMO COMMANDS TO FIREBASE
+    // These commands do NOT operate a physical relay or geyser.
     async function submitDemoCommand(state) {
       if (!signedInUser) {
-        message("Please sign in first.");
+        setMessage("Please sign in first.");
         return;
       }
 
       if (commandInProgress) return;
 
       commandInProgress = true;
-      updateCommandButtons();
+      updateButtons();
 
       try {
         await set(ref(db, "devices/geyser01/demoCommand"), {
@@ -476,19 +445,14 @@
         });
 
         $("status").textContent = "Simulated state: " + state;
-
-        message(
-          "Demo command saved to Firebase. No physical geyser was switched."
-        );
+        setMessage("Demo command saved to Firebase. No physical geyser was switched.");
 
       } catch (error) {
-        console.error(error);
-
-        message("Database error: " + error.message);
-
+        console.error("Database error:", error.code, error.message);
+        setMessage("Database error: " + error.message);
       } finally {
         commandInProgress = false;
-        updateCommandButtons();
+        updateButtons();
       }
     }
 
@@ -499,7 +463,6 @@
     $("offButton").addEventListener("click", () => {
       submitDemoCommand("OFF");
     });
-
   </script>
 </body>
 </html>
