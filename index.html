@@ -1,4 +1,4 @@
-
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,9 +7,7 @@
   <title>Smart Geyser Control</title>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -24,14 +22,8 @@
       padding: 22px 6%;
     }
 
-    header h1 {
-      margin: 0 0 8px;
-    }
-
-    header p {
-      margin: 0;
-      color: #cbd5e1;
-    }
+    header h1 { margin: 0 0 8px; }
+    header p { margin: 0; color: #cbd5e1; }
 
     main {
       max-width: 850px;
@@ -66,10 +58,7 @@
       flex-wrap: wrap;
     }
 
-    .muted {
-      color: #64748b;
-      font-size: 14px;
-    }
+    .muted { color: #64748b; font-size: 14px; }
 
     .status {
       font-size: 24px;
@@ -84,6 +73,19 @@
       background: #d97706;
       border-radius: 50%;
       margin-right: 7px;
+    }
+
+    #loginForm {
+      display: grid;
+      gap: 10px;
+    }
+
+    #email {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 16px;
     }
 
     .buttons {
@@ -107,15 +109,9 @@
       outline-offset: 3px;
     }
 
-    .on {
-      background: #15803d;
-      color: white;
-    }
-
-    .off {
-      background: #b91c1c;
-      color: white;
-    }
+    .primary { background: #1d4ed8; color: white; }
+    .on { background: #15803d; color: white; }
+    .off { background: #b91c1c; color: white; }
 
     button:disabled {
       opacity: 0.5;
@@ -130,13 +126,8 @@
     }
 
     @media (max-width: 480px) {
-      .buttons {
-        grid-template-columns: 1fr;
-      }
-
-      .card {
-        padding: 18px;
-      }
+      .buttons { grid-template-columns: 1fr; }
+      .card { padding: 18px; }
     }
   </style>
 </head>
@@ -149,9 +140,37 @@
 
   <main>
     <div class="notice">
-      <strong>Demo mode:</strong> These buttons only simulate
-      commands. No physical geyser is connected.
+      <strong>DEMO MODE ONLY:</strong>
+      Commands are saved to Firebase for testing.
+      No physical geyser, relay, or ESP32 is controlled.
     </div>
+
+    <section class="card">
+      <h2>Email Link Sign-in</h2>
+
+      <form id="loginForm">
+        <label for="email">Email address</label>
+        <input
+          id="email"
+          type="email"
+          autocomplete="email"
+          placeholder="Enter your email"
+          required
+        >
+
+        <button class="primary" type="submit" id="sendLinkButton">
+          Send Sign-in Link
+        </button>
+
+        <button type="button" id="logoutButton" disabled>
+          Sign Out
+        </button>
+      </form>
+
+      <p id="authStatus" class="muted" aria-live="polite">
+        Enter your email to receive a sign-in link.
+      </p>
+    </section>
 
     <section class="card">
       <div class="row">
@@ -162,37 +181,36 @@
 
         <div class="muted">
           <span class="dot"></span>
-          <span id="connection">Not connected</span>
+          <span id="connection">Not signed in</span>
         </div>
       </div>
 
       <div class="status" id="status">Simulated state: OFF</div>
+
       <p class="muted" id="description">
-        The dashboard is running locally.
+        No physical device is connected.
       </p>
 
       <div class="buttons">
-        <button class="on" id="onButton">
-          Turn ON
-        </button>
-
-        <button class="off" id="offButton">
-          Turn OFF
-        </button>
+        <button class="on" id="onButton" disabled>Demo ON</button>
+        <button class="off" id="offButton" disabled>Demo OFF</button>
       </div>
 
       <p id="message" aria-live="polite" class="muted">
-        Ready for demo.
+        Sign in to test demo commands.
       </p>
     </section>
 
     <section class="card">
-      <h3>Device information</h3>
+      <h3>Device Information</h3>
+
       <div class="row">
         <span>Controller</span>
-        <strong>ESP32 — not connected</strong>
+        <strong>ESP32-S3 — not connected</strong>
       </div>
+
       <hr>
+
       <div class="row">
         <span>Control mode</span>
         <strong>Demo only</strong>
@@ -200,42 +218,288 @@
     </section>
   </main>
 
-  <footer>
-    Smart Geyser Control · Prototype
-  </footer>
+  <footer>Smart Geyser Control · Prototype</footer>
 
-  <script>
-    // DEMO MODE: no hardware commands are sent.
-    let simulatedState = false;
+  <script type="module">
+    import { initializeApp }
+      from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 
-    const status = document.getElementById("status");
-    const message = document.getElementById("message");
+    import {
+      getAuth,
+      sendSignInLinkToEmail,
+      isSignInWithEmailLink,
+      signInWithEmailLink,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
-    document.getElementById("onButton").addEventListener(
-      "click", () => {
-        if (!confirm("Simulate turning the geyser ON?")) return;
+    import {
+      getDatabase,
+      ref,
+      set
+    } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
 
-        simulatedState = true;
-        updateDashboard();
-      }
-    );
 
-    document.getElementById("offButton").addEventListener(
-      "click", () => {
-        if (!confirm("Simulate turning the geyser OFF?")) return;
+    // --------------------------------------------------
+    // 1. FIREBASE CONFIGURATION
+    // --------------------------------------------------
 
-        simulatedState = false;
-        updateDashboard();
-      }
-    );
+    const firebaseConfig = {
+      apiKey: "AIzaSyCpvEFTqYIYrYN1RzdDkmzdiUEAzbIUsw4",
+      authDomain: "sgcs-7a424.firebaseapp.com",
 
-    function updateDashboard() {
-      status.textContent =
-        "Simulated state: " + (simulatedState ? "ON" : "OFF");
+      // IMPORTANT:
+      // Replace this with the actual database URL shown
+      // in Firebase Console > Realtime Database > Data.
+      // Do not use the Firebase Console page URL here.
+      databaseURL: "https://console.firebase.google.com/project/sgcs-7a424/database/sgcs-7a424-default-rtdb/data/~2F",
 
-      message.textContent =
-        "Demo updated. The physical geyser was not switched.";
+      projectId: "sgcs-7a424",
+      storageBucket: "sgcs-7a424.firebasestorage.app",
+      messagingSenderId: "831520595362",
+      appId: "1:831520595362:web:b0c18a917bb0c9aa28e6fb"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    const $ = (id) => document.getElementById(id);
+
+    let signedInUser = null;
+    let commandInProgress = false;
+
+
+    // --------------------------------------------------
+    // 2. EMAIL LINK SETTINGS
+    // --------------------------------------------------
+
+    const actionCodeSettings = {
+      url: window.location.origin + window.location.pathname,
+      handleCodeInApp: true
+    };
+
+
+    // --------------------------------------------------
+    // 3. INITIAL BUTTON STATE
+    // --------------------------------------------------
+
+    $("onButton").disabled = true;
+    $("offButton").disabled = true;
+    $("logoutButton").disabled = true;
+
+
+    function message(text) {
+      $("message").textContent = text;
     }
+
+
+    function updateCommandButtons() {
+      const enabled = Boolean(signedInUser) && !commandInProgress;
+
+      $("onButton").disabled = !enabled;
+      $("offButton").disabled = !enabled;
+    }
+
+
+    // --------------------------------------------------
+    // 4. SEND EMAIL SIGN-IN LINK
+    // --------------------------------------------------
+
+    $("loginForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      if (signedInUser) {
+        $("authStatus").textContent = "You are already signed in.";
+        return;
+      }
+
+      const email = $("email").value.trim();
+
+      if (!email) {
+        $("authStatus").textContent = "Please enter your email.";
+        return;
+      }
+
+      $("sendLinkButton").disabled = true;
+
+      try {
+        await sendSignInLinkToEmail(
+          auth,
+          email,
+          actionCodeSettings
+        );
+
+        // Save email locally for completing sign-in
+        // on the same browser and device.
+        localStorage.setItem("emailForSignIn", email);
+
+        $("authStatus").textContent =
+          "Sign-in link sent. Check your email and open the link in this browser.";
+
+      } catch (error) {
+        console.error(error);
+
+        $("authStatus").textContent =
+          "Could not send link: " + error.message;
+
+      } finally {
+        $("sendLinkButton").disabled = Boolean(signedInUser);
+      }
+    });
+
+
+    // --------------------------------------------------
+    // 5. COMPLETE SIGN-IN FROM THE EMAIL LINK
+    // --------------------------------------------------
+
+    async function completeEmailLinkSignIn() {
+      if (!isSignInWithEmailLink(auth, window.location.href)) {
+        return;
+      }
+
+      let email = localStorage.getItem("emailForSignIn");
+
+      if (!email) {
+        email = window.prompt(
+          "For security, enter the email address that received this link:"
+        );
+      }
+
+      if (!email) {
+        $("authStatus").textContent =
+          "Sign-in cancelled. Enter your email and request a new link.";
+        return;
+      }
+
+      $("authStatus").textContent = "Verifying your sign-in link...";
+
+      try {
+        await signInWithEmailLink(
+          auth,
+          email.trim(),
+          window.location.href
+        );
+
+        localStorage.removeItem("emailForSignIn");
+
+        // Remove the one-time sign-in code from the address bar.
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname
+        );
+
+        $("authStatus").textContent = "Email verified. You are signed in.";
+
+      } catch (error) {
+        console.error(error);
+
+        $("authStatus").textContent =
+          "Sign-in failed: " + error.message;
+      }
+    }
+
+
+    // --------------------------------------------------
+    // 6. MONITOR AUTHENTICATION STATE
+    // --------------------------------------------------
+
+    onAuthStateChanged(auth, (user) => {
+      signedInUser = user;
+
+      $("logoutButton").disabled = !user;
+      $("sendLinkButton").disabled = Boolean(user);
+      $("email").disabled = Boolean(user);
+
+      $("authStatus").textContent = user
+        ? "Signed in as: " + (user.email || "verified user")
+        : "Not signed in. Enter your email to receive a link.";
+
+      $("connection").textContent = user
+        ? "Authenticated"
+        : "Not signed in";
+
+      if (!user) {
+        $("status").textContent = "Simulated state: OFF";
+      }
+
+      updateCommandButtons();
+
+      message(user
+        ? "Ready for demo commands. No physical hardware is connected."
+        : "Sign in to test demo commands.");
+    });
+
+
+    // Start checking for an email sign-in link.
+    completeEmailLinkSignIn();
+
+
+    // --------------------------------------------------
+    // 7. SIGN OUT
+    // --------------------------------------------------
+
+    $("logoutButton").addEventListener("click", async () => {
+      try {
+        await signOut(auth);
+        $("authStatus").textContent = "You have signed out.";
+      } catch (error) {
+        $("authStatus").textContent =
+          "Sign-out failed: " + error.message;
+      }
+    });
+
+
+    // --------------------------------------------------
+    // 8. SAVE DEMO COMMANDS ONLY
+    // --------------------------------------------------
+
+    async function submitDemoCommand(state) {
+      if (!signedInUser) {
+        message("Please sign in first.");
+        return;
+      }
+
+      if (commandInProgress) return;
+
+      commandInProgress = true;
+      updateCommandButtons();
+
+      try {
+        await set(ref(db, "devices/geyser01/demoCommand"), {
+          requestedState: state,
+          requestId: crypto.randomUUID(),
+          mode: "DEMO",
+          requestedBy: signedInUser.uid,
+          timestamp: Date.now()
+        });
+
+        $("status").textContent = "Simulated state: " + state;
+
+        message(
+          "Demo command saved to Firebase. No physical geyser was switched."
+        );
+
+      } catch (error) {
+        console.error(error);
+
+        message("Database error: " + error.message);
+
+      } finally {
+        commandInProgress = false;
+        updateCommandButtons();
+      }
+    }
+
+    $("onButton").addEventListener("click", () => {
+      submitDemoCommand("ON");
+    });
+
+    $("offButton").addEventListener("click", () => {
+      submitDemoCommand("OFF");
+    });
+
   </script>
 </body>
 </html>
